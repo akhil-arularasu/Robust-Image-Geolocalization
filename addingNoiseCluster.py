@@ -30,7 +30,7 @@ from scipy.ndimage import zoom as scizoom
 import warnings
 
 warnings.simplefilter("ignore", UserWarning)
-print('hellloooworld')
+print('hello')
 def auc(errs):  # area under the alteration error curve
     area = 0
     for i in range(1, len(errs)):
@@ -529,7 +529,7 @@ d['Saturate'] = saturate
 
 image_list = []
 input_csv_path = '/home/c3-0/parthpk/CVUSA/splits/val-19zl.csv'
-output_directory = '/home/ak362297/TransGeo2022/FINALCVUSANoiseSeverity5NEWNOISEBEFORETRANSFORM'
+output_directory = '/home/ak362297/TransGeo2022/FINALCVUSANoiseSeverity1NEWNOISEBEFORETRANSFORM' # when changing noise severity change HERE and
 
 with open(input_csv_path, 'r') as file:
     reader = csv.reader(file)
@@ -554,7 +554,7 @@ for image_name in image_list:
     img = Image.open(image_path)
     # Apply noise functions to the image
     for noise_name, noise_func in d.items():
-        severity = 5
+        severity = 1 # and change HERE
 
         noisy_img = noise_func(img, severity)
 
@@ -571,8 +571,6 @@ for image_name in image_list:
         print(f"Applied {noise_name} with severity level {severity} to {image_name} and saved to {output_path}")
         print(index)
         index = index+1
-
-
 
 '''
 if len(dataset) != len(image_list):

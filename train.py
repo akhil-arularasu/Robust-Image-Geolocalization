@@ -158,6 +158,7 @@ def compute_complexity(model, args):
 
 
 def main():
+    print('in main')
     args = parser.parse_args()
     print(args)
 
@@ -727,7 +728,7 @@ def accuracy(query_features, reference_features, query_labels, noise_name, topk=
 
     results = results / query_features.shape[0] * 100.
      # Open the file in write mode
-    with open('noiselvl2EvaluationValues.txt', 'a') as file:
+    with open('noiselvl5EvaluationValues.txt', 'a') as file:
         # Format the content string
         content = 'Noise Type: {}, Top1 Accuracy: {:.2f}, Top5 Accuracy: {:.2f}, Top10 Accuracy: {:.2f}, Top1% Accuracy: {:.2f}, Time: {:.2f}\n'.format(noise_name, results[0], results[1], results[2], results[-1], time.time() - ts)
         # Write the content to the file
