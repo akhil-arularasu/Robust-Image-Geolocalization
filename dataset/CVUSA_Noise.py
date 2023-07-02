@@ -6,7 +6,6 @@ import os
 import random
 import sys
 from torchvision.transforms.functional import to_pil_image
-# from addingNoiseCluster import brightness
 
 class LimitedFoV(object):
     def __init__(self, fov=360.):
@@ -27,7 +26,6 @@ class LimitedFoV(object):
         else:
             img_shift = x
         return img_shift[:,:,:fov_index]
-
 
 def input_transform_fov(size, fov):
     return transforms.Compose([
@@ -52,7 +50,7 @@ def input_transform(size):
 # pytorch version of CVUSA loader
 class CVUSA_Noise(torch.utils.data.Dataset):
 
-    def __init__(self, mode = '', root = '/home/c3-0/parthpk/CVUSA/', query_root = '/home/ak362297/TransGeo2022/CVUSANoise/',same_area=True, print_bool=False, polar = '', args=None, noiseName=''): #CV-dataset
+    def __init__(self, mode = '', root = '/home/c3-0/parthpk/CVUSA/', query_root = '/home/ak362297/TransGeo2022/FINALCVUSANoiseSeverity5/',same_area=True, print_bool=False, polar = '', args=None, noiseName=''): #CV-dataset
         super(CVUSA_Noise, self).__init__()
 
         self.noiseName = noiseName
@@ -140,13 +138,13 @@ class CVUSA_Noise(torch.utils.data.Dataset):
     def __getitem__(self, index, debug=False):
         if self.mode == 'train':
             idx = index % len(self.id_idx_list)
-            img_query = Image.open(self.query_root + self.id_list[idx][1])
+            img_query = Image.open(self.root + self.id_list[idx][1])
 
             # Convert image to RGB if it's not already in RGB format
             if img_query.mode != 'RGB':
                 img_query = img_query.convert('RGB')
             img_query = self.transform_query(img_query)
-            img_reference = Image.open('/home/c3-0/parthpk/CVUSA/' + self.id_list[idx][0]).convert('RGB')
+            img_reference = Image.open(self.root + self.id_list[idx][0]).convert('RGB')
             img_reference = self.transform_reference(img_reference)
             if self.args.crop:
                 atten_sat = Image.open(os.path.join(self.args.resume.replace(self.args.resume.split('/')[-1],''),'attention','train',str(idx-1)+'.png')).convert('RGB')
@@ -174,8 +172,8 @@ class CVUSA_Noise(torch.utils.data.Dataset):
         elif 'test_query' in self.mode:
             idx = index % len(self.id_idx_list)
             img_query = Image.open(self.query_root + self.id_test_list[index][1]).convert('RGB')
-          #  print('img_query')
-          #  print(self.query_root + self.id_test_list[index][1])
+          # print('img_query')
+          # print(self.query_root + self.id_test_list[index][1])
             img_query = self.transform_query(img_query)
             img_query_pil = to_pil_image(img_query)  # Convert tensor back to PIL Image
             img_query_pil.save("/home/ak362297/TransGeo2022/output.jpg")
@@ -198,22 +196,3 @@ class CVUSA_Noise(torch.utils.data.Dataset):
         else:
             print('not implemented!')
             raise Exception
-
-
-'''     
-        ## UPDATING CSV FILE
-        with open(self.test_list, 'r') as file:
-            lines = file.readlines()
-        modified_lines = []
-        for line in lines:
-            data = line.strip().split(',')
-            if len(data) >= 2:
-                data[1] = noiseName + '/' + data[1].split('/')[-1]
-            modified_line = ','.join(data)
-            modified_lines.append(modified_line)
-'''    
-
-'''            
-        with open(self.test_list, 'w') as file:
-            file.write('\n'.join(modified_lines))
-'''

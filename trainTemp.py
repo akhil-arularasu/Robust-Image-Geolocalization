@@ -19,13 +19,14 @@ import torchvision.models as models
 from torchvision.transforms import ToTensor
 from datetime import datetime
 from torch.utils.data.dataloader import default_collate
+import torch.nn.functional as F
 import csv
 
 import numpy as np
+from dataset.CVUSA_Noise2 import CVUSA_Noise2
 from dataset.VIGOR import VIGOR
 from dataset.CVUSA import CVUSA
 from dataset.CVACT import CVACT
-from dataset.CVUSA_Noise import CVUSA_Noise
 from model.TransGeo import TransGeo
 from criterion.soft_triplet import SoftTripletBiLoss
 from dataset.global_sampler import DistributedMiningSampler,DistributedMiningSamplerVigor
@@ -122,9 +123,7 @@ parser.add_argument('--crop', action='store_true',
 parser.add_argument('--fov', default=0, type=int,
                     help='Fov')
 
-
 best_acc1 = 0
-
 
 def compute_complexity(model, args):
     if args.dataset == 'vigor':
@@ -158,7 +157,6 @@ def compute_complexity(model, args):
 
 
 def main():
-    print('in main')
     args = parser.parse_args()
     print(args)
 
@@ -192,6 +190,7 @@ def main():
     else:
         # Simply call main_worker function
         main_worker(args.gpu, ngpus_per_node, args)
+
 
 def custom_collate(batch):
     images, indexes, atten = zip(*batch)
@@ -327,7 +326,7 @@ def main_worker(gpu, ngpus_per_node, args):
         dataset = VIGOR
         mining_sampler = DistributedMiningSamplerVigor
     elif args.dataset == 'cvusa':
-        dataset = CVUSA_Noise
+        dataset = CVUSA_Noise2
         mining_sampler = DistributedMiningSampler
     elif args.dataset == 'cvact':
         dataset = CVACT
@@ -459,28 +458,35 @@ def train(train_loader, model, criterion, optimizer, epoch, args, train_sampler=
 
     end = time.time()
     for i, (images_q, images_k, indexes, _, delta, atten) in enumerate(train_loader):
-
         # measure data loading time
         data_time.update(time.time() - end)
 
+        if random.random() < 0.5:
+            images = images_q[0]
+        else:
+            images = images_q[1]
+
+        ## decide which image i want (noisy or clean)
+        #print('size:', images.size())
+
         if args.gpu is not None:
-            images_q = images_q.cuda(args.gpu, non_blocking=True)
+            images = images.cuda(args.gpu, non_blocking=True)
             images_k = images_k.cuda(args.gpu, non_blocking=True)
             indexes = indexes.cuda(args.gpu, non_blocking=True)
 
         # compute output
         if args.crop:
-            embed_q, embed_k = model(im_q=images_q, im_k=images_k, delta=delta, atten=atten)
+            embed_q, embed_k = model(im_q=images, im_k=images_k, delta=delta, atten=atten)
         else:
-            embed_q, embed_k = model(im_q =images_q, im_k=images_k, delta=delta)
+            embed_q, embed_k = model(im_q =images, im_k=images_k, delta=delta)
 
         loss, mean_p, mean_n = criterion(embed_q, embed_k)
 
         if args.mining:
             train_sampler.update(concat_all_gather(embed_k).detach().cpu().numpy(),concat_all_gather(embed_q).detach().cpu().numpy(),concat_all_gather(indexes).detach().cpu().numpy())
-        losses.update(loss.item(), images_q.size(0))
-        mean_ps.update(mean_p, images_q.size(0))
-        mean_ns.update(mean_n, images_q.size(0))
+        losses.update(loss.item(), images.size(0))
+        mean_ps.update(mean_p, images.size(0))
+        mean_ns.update(mean_n, images.size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -492,9 +498,9 @@ def train(train_loader, model, criterion, optimizer, epoch, args, train_sampler=
 
             # second forward-backward pass, only for ASAM
             if args.crop:
-                embed_q, embed_k = model(im_q=images_q, im_k=images_k, delta=delta, atten=atten)
+                embed_q, embed_k = model(im_q=images, im_k=images_k, delta=delta, atten=atten)
             else:
-                embed_q, embed_k = model(im_q=images_q, im_k=images_k, delta=delta)
+                embed_q, embed_k = model(im_q=images, im_k=images_k, delta=delta)
 
             loss, mean_p, mean_n = criterion(embed_q, embed_k)
             loss.backward()
@@ -728,7 +734,7 @@ def accuracy(query_features, reference_features, query_labels, noise_name, topk=
 
     results = results / query_features.shape[0] * 100.
      # Open the file in write mode
-    with open('noiselvl5EvaluationValues.txt', 'a') as file:
+    with open('trainNoiselvl2EvaluationValues.txt', 'a') as file:
         # Format the content string
         content = 'Noise Type: {}, Top1 Accuracy: {:.2f}, Top5 Accuracy: {:.2f}, Top10 Accuracy: {:.2f}, Top1% Accuracy: {:.2f}, Time: {:.2f}\n'.format(noise_name, results[0], results[1], results[2], results[-1], time.time() - ts)
         # Write the content to the file

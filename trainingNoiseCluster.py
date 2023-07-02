@@ -7,8 +7,6 @@ import torch
 import torchvision.datasets as dset
 import torchvision.transforms as trn
 import torch.utils.data as data
-from dataset.CVUSA import CVUSA
-import argparse
 from scipy.ndimage import map_coordinates
 import csv
 from torchvision.transforms import ToPILImage
@@ -30,7 +28,6 @@ from scipy.ndimage import zoom as scizoom
 import warnings
 
 warnings.simplefilter("ignore", UserWarning)
-print('hello')
 def auc(errs):  # area under the alteration error curve
     area = 0
     for i in range(1, len(errs)):
@@ -138,10 +135,13 @@ def clipped_zoom(img, zoom_factor):
 
 
 def gaussian_noise(x, severity=1):
-    c = [.08, .12, 0.18, 0.26, 0.38][severity - 1]
-
-    x = np.array(x) / 255.
-    return np.clip(x + np.random.normal(size=x.shape, scale=c), 0, 1) * 255
+    c = [0.08, 0.12, 0.18, 0.26, 0.38][severity - 1]
+    # Apply the gaussian noise operation to the input image 'x'
+    noise = np.random.normal(0, c, x.shape)
+    noisy_img_query = np.clip(x + noise, 0, 255).astype(np.uint8)
+    noisy_img_query = Image.fromarray(noisy_img_query)  # Convert ndarray to PIL Image
+    noisy_img_query = noisy_img_query.resize((224, 224))
+    return noisy_img_query
 
 def shot_noise(x, severity=1):
     c = [60, 25, 12, 5, 3][severity - 1]
@@ -176,9 +176,8 @@ def fgsm(x, source_net, severity=1):
 
 def gaussian_blur(x, severity=1):
     c = [1, 2, 3, 4, 6][severity - 1]
-
-    x = gaussian(np.array(x) / 255., sigma=c)
-    return np.clip(x, 0, 1) * 255
+    blurred_img_query = cv2.GaussianBlur(x, (c, c), 0)
+    return blurred_img_query
 
 
 def glass_blur(x, severity=1):
@@ -474,161 +473,3 @@ def elastic_transform(image, severity=1):
 
 
 # /////////////// End Distortions ///////////////
-
-
-# /////////////// Display Results ///////////////
-
-# Create an ArgumentParser object
-parser = argparse.ArgumentParser()
-parser.add_argument('--sat_res', type=int, default=0, help='satellite image resolution')
-parser.add_argument('--fov', type=int, default=0, help='field of view')
-# Parse the command-line arguments
-args = parser.parse_args()
-args.mode = 'test_query'  # Set the mode attribute to
-# Pass the args object to the CVUSA class
-dataset = CVUSA(mode='test_query', args=args)
-image_tuple = dataset[0]
-
-print(len(dataset))
-
-# Extract the image tensor from the tuple
-image = image_tuple[0]
-# image = image.reshape(image.shape[1], image.shape[2], image.shape[0])
-
-'''
-# Convert the image tensor to a NumPy array
-image_array = image.numpy()
-image_array = image_array.t((1, 2, 0))
-image_array = image_array / 255.0  # Normalize the image data
-image_array = image_array.clip(0, 1)  # Clip values to the valid range [0, 1]
-'''
-
-import collections
-
-d = collections.OrderedDict()
-d['Gaussian Noise'] = gaussian_noise
-d['Shot Noise'] = shot_noise
-d['Impulse Noise'] = impulse_noise
-d['Defocus Blur'] = defocus_blur
-d['Glass Blur'] = glass_blur
-d['Motion Blur'] = motion_blur
-d['Zoom Blur'] = zoom_blur
-d['Snow'] = snow
-## d['Frost'] = frost
-d['Fog'] = fog
-d['Brightness'] = brightness
-d['Contrast'] = contrast
-d['Elastic'] = elastic_transform
-d['Pixelate'] = pixelate
-d['JPEG'] = jpeg_compression
-
-d['Speckle Noise'] = speckle_noise
-d['Gaussian Blur'] = gaussian_blur
-d['Spatter'] = spatter
-d['Saturate'] = saturate
-
-image_list = []
-input_csv_path = '/home/c3-0/parthpk/CVUSA/splits/val-19zl.csv'
-output_directory = '/home/ak362297/TransGeo2022/FINALCVUSANoiseSeverity1NEWNOISEBEFORETRANSFORM' # when changing noise severity change HERE and
-
-with open(input_csv_path, 'r') as file:
-    reader = csv.reader(file)
-    for row in reader:
-        image_path = row[1]  # Assuming the streetview/panos JPG image path is in the second column
-        image_list.append(image_path)
-
-image_list = [item.replace('streetview/panos/', '') for item in image_list]
-print('lllen of image list')
-print(len(image_list))
-image_directory = '/home/c3-0/parthpk/CVUSA/streetview/panos'
-#output directories for each noise type
-for noise_name, noise in d.items():
-    noise_folder = os.path.join(output_directory, noise_name)
-    os.makedirs(noise_folder, exist_ok=True)
-
-index = 0
-for image_name in image_list:
-    image_path = os.path.join(image_directory, image_name)
-
-    # Open the image
-    img = Image.open(image_path)
-    # Apply noise functions to the image
-    for noise_name, noise_func in d.items():
-        severity = 1 # and change HERE
-
-        noisy_img = noise_func(img, severity)
-
-        # Convert the noisy image to a NumPy array and perform any necessary processing
-        noisy_img_np = np.array(noisy_img)
-
-        # Convert the data type to uint8
-        noisy_img_np = noisy_img_np.astype(np.uint8)
-
-        # Save the noisy image to the output directory
-        output_path = os.path.join(output_directory, noise_name, image_name)
-        Image.fromarray(noisy_img_np).save(output_path)
-
-        print(f"Applied {noise_name} with severity level {severity} to {image_name} and saved to {output_path}")
-        print(index)
-        index = index+1
-
-'''
-if len(dataset) != len(image_list):
-    print("Error: Mismatch between dataset length and image_list length.")
-    print(f"Dataset length: {len(dataset)}, image_list length: {len(image_list)}")
-else:
-    for index in range(len(dataset)):
-        # Get the data item at the current index
-        img_query, img_reference, idx = dataset[index]
-        image_name = image_list[index]
-    
-        for noise_name, noise_func in d.items():
-            print(noise_name)
-            noisy_img = noise_func(img_query)
-
-            # Convert the noisy image to a NumPy array and perform multiplication
-            noisy_img = np.array(noisy_img) * 255
-            noisy_img = noisy_img.astype(np.uint8)
-
-            # Transpose the dimensions of the array if necessary
-            if noisy_img.shape[0] != 3:
-                noisy_img = np.transpose(noisy_img, (1, 2, 0))
-
-
-            # Save the noisy image to the corresponding output directory
-        output_path = os.path.join(output_folder, noise_name, image_name)
-
-        # Reshape the noisy_img array if it has a shape of (1, 1, 616)
-        if len(noisy_img.shape) == 3 and noisy_img.shape[0] == 1 and noisy_img.shape[1] == 1:
-            noisy_img = noisy_img.reshape(noisy_img.shape[2], noisy_img.shape[0], noisy_img.shape[1])
-
-        # Convert the noisy_img array to the appropriate data type and save the image
-        Image.fromarray(noisy_img.astype(np.uint8)).save(output_path)
-
-        print(f"Applied {noise_name} to {image_name} and saved to {output_path}")
-'''
-
-
-'''
-for image_name in image_list:
-    image_path = os.path.join(image_directory, image_name)
-
-    # Open the image
-    img = Image.open(image_path)
-
-    # Apply noise functions to the image
-    for noise_name, noise_func in d.items():
-        noisy_img = noise_func(img)
-
-        # Convert the noisy image to a NumPy array and perform any necessary processing
-        noisy_img_np = np.array(noisy_img)
-
-        # Convert the data type to uint8
-        noisy_img_np = noisy_img_np.astype(np.uint8)
-
-        # Save the noisy image to the output directory
-        output_path = os.path.join(output_directory, noise_name, image_name)
-        Image.fromarray(noisy_img_np).save(output_path)
-
-        print(f"Applied {noise_name} to {image_name} and saved to {output_path}")
-'''
