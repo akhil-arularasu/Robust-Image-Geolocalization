@@ -53,11 +53,10 @@ def input_transform(size):
 
 
 # pytorch version of CVUSA loader
-class CVUSA_Noise(torch.utils.data.Dataset):
+class CVUSA_Noise2(torch.utils.data.Dataset):
 
     def __init__(self, mode = '', root = '/home/c3-0/parthpk/CVUSA/', query_root = '/home/ak362297/TransGeo2022/FINALCVUSANoiseSeverity2/',same_area=True, print_bool=False, polar = '', args=None, noiseName='Gaussian Noise'): #CV-dataset
-        super(CVUSA_Noise, self).__init__()
-
+        super(CVUSA_Noise2, self).__init__()
         self.noiseName = noiseName
         self.args = args
         self.root = root
@@ -119,6 +118,7 @@ class CVUSA_Noise(torch.utils.data.Dataset):
                 self.id_list.append([data[0], data[1], pano_id])
                 self.id_idx_list.append(idx)
                 idx += 1
+        
         self.data_size = len(self.id_list)
         if print_bool:
             print('CVUSA: load', self.train_list, ' data_size =', self.data_size)
@@ -139,59 +139,32 @@ class CVUSA_Noise(torch.utils.data.Dataset):
         self.test_data_size = len(self.id_test_list)
         if print_bool:
             print('CVUSA: load', self.test_list, ' data_size =', self.test_data_size)
+        
+        self.noisy_images = {}  # Dictionary to store noisy images
+        
+        if self.mode == 'train':
+            print('generating noisy images for the entire training dataset')
+            # Generate and store noisy images for each training image
+            for i in range(self.data_size):
+                img_query_path = '/home/c3-0/parthpk/CVUSA/' + self.id_list[i][1]
+                img_query = Image.open(img_query_path).convert('RGB')
+                # Apply random noise to img_query and store the noisy image
+                noisy_img_query = self.apply_random_noise(img_query)
+                print(self.id_list[i][1])
+                self.noisy_images[self.id_list[i][1]] = noisy_img_query
 
     def __getitem__(self, index, debug=False):
         if self.mode == 'train':
             idx = index % len(self.id_idx_list)
             img_query = Image.open('/home/c3-0/parthpk/CVUSA/' + self.id_list[idx][1])
+            print('going in getitem')
             # Convert image to RGB if it's not already in RGB format
             if img_query.mode != 'RGB':
                 img_query = img_query.convert('RGB')
             img_reference = Image.open('/home/c3-0/parthpk/CVUSA/' + self.id_list[idx][0]).convert('RGB')
             img_reference = self.transform_reference(img_reference)
 
-            # Randomly select a noise type
-            noise_type = random.choice(['Gaussian Noise', 'Shot Noise', 'Impulse Noise', 'Defocus Blur', 'Glass Blur', 'Motion Blur', 'Zoom Blur', 'Snow', 'Fog', 'Brightness', 'Contrast', 'Elastic', 'Pixelate', 'JPEG', 'Speckle Noise', 'Gaussian Blur', 'Spatter', 'Saturate'])
-            
-            severity = 1  # Assuming you have a list of severity levels
-            if noise_type == 'Gaussian Noise':
-                noisy_img_query = trainingNoiseCluster.gaussian_noise(np.array(img_query), severity)
-            elif noise_type == 'Shot Noise':
-                noisy_img_query = trainingNoiseCluster.shot_noise(img_query, severity)
-            elif noise_type == 'Impulse Noise':
-                noisy_img_query = trainingNoiseCluster.impulse_noise(img_query, severity)
-            elif noise_type == 'Defocus Blur':
-                noisy_img_query = trainingNoiseCluster.defocus_blur(img_query, severity)
-            elif noise_type == 'Glass Blur':
-                noisy_img_query = trainingNoiseCluster.glass_blur(img_query, severity)
-            elif noise_type == 'Motion Blur':
-                noisy_img_query = trainingNoiseCluster.motion_blur(img_query, severity)
-            elif noise_type == 'Zoom Blur':
-                noisy_img_query = trainingNoiseCluster.zoom_blur(img_query, severity)
-            elif noise_type == 'Snow':
-                noisy_img_query = trainingNoiseCluster.snow(img_query, severity)
-            elif noise_type == 'Fog':
-                noisy_img_query = trainingNoiseCluster.fog(img_query, severity)
-            elif noise_type == 'Brightness':
-                noisy_img_query = trainingNoiseCluster.brightness(img_query, severity)
-            elif noise_type == 'Contrast':
-                noisy_img_query = trainingNoiseCluster.contrast(img_query, severity)
-            elif noise_type == 'Elastic':
-                noisy_img_query = trainingNoiseCluster.elastic_transform(img_query, severity)
-            elif noise_type == 'Pixelate':
-                noisy_img_query = trainingNoiseCluster.pixelate(img_query, severity)
-            elif noise_type == 'JPEG':
-                noisy_img_query = trainingNoiseCluster.jpeg_compression(img_query, severity)
-            elif noise_type == 'Speckle Noise':
-                noisy_img_query = trainingNoiseCluster.speckle_noise(img_query, severity)
-            elif noise_type == 'Gaussian Blur':
-                noisy_img_query = trainingNoiseCluster.gaussian_blur(np.array(img_query), severity)
-            elif noise_type == 'Spatter':
-                noisy_img_query = trainingNoiseCluster.spatter(img_query, severity)
-            elif noise_type == 'Saturate':
-                noisy_img_query = trainingNoiseCluster.saturate(img_query, severity)
-            else:
-                raise ValueError(f"Unsupported noise type: {noise_type}")
+            noisy_img_query = self.noisy_images[self.id_list[idx][1]]
 
             noisy_img_query = np.uint8(noisy_img_query)
             noisy_img_query = np.reshape(noisy_img_query, (noisy_img_query.shape[0], noisy_img_query.shape[1], 3))
@@ -220,7 +193,6 @@ class CVUSA_Noise(torch.utils.data.Dataset):
             img_reference = Image.open(self.root + self.id_test_list[index][0]).convert('RGB')
             img_reference = self.transform_reference(img_reference)
             if self.args.crop:# and index <= 8883:
-                print(os.path.join(self.args.resume.replace(self.args.resume.split('/')[-1],''),'attention','val',str(index)+'.png'))
                 atten_sat = Image.open(os.path.join(self.args.resume.replace(self.args.resume.split('/')[-1],''),'attention','val',str(index)+'.png')).convert('RGB')
                 return img_reference, torch.tensor(index), self.to_tensor(atten_sat)
             return img_reference, torch.tensor(index), 0
@@ -252,7 +224,51 @@ class CVUSA_Noise(torch.utils.data.Dataset):
         else:
             print('not implemented!')
             raise Exception
+    
+    def apply_random_noise(self, img_query):
+        # Apply random noise to img and return the noisy image
+        noise_type = random.choice(['Gaussian Noise', 'Shot Noise', 'Impulse Noise', 'Defocus Blur', 'Glass Blur', 'Motion Blur', 'Zoom Blur', 'Snow', 'Fog', 'Brightness', 'Contrast', 'Elastic', 'Pixelate', 'JPEG', 'Speckle Noise', 'Gaussian Blur', 'Spatter', 'Saturate'])      
+        severity = 1  # Assuming you have a list of severity levels
+        if noise_type == 'Gaussian Noise':
+            noisy_img_query = trainingNoiseCluster.gaussian_noise(np.array(img_query), severity)
+        elif noise_type == 'Shot Noise':
+            noisy_img_query = trainingNoiseCluster.shot_noise(img_query, severity)
+        elif noise_type == 'Impulse Noise':
+            noisy_img_query = trainingNoiseCluster.impulse_noise(img_query, severity)
+        elif noise_type == 'Defocus Blur':
+            noisy_img_query = trainingNoiseCluster.defocus_blur(img_query, severity)
+        elif noise_type == 'Glass Blur':
+            noisy_img_query = trainingNoiseCluster.glass_blur(img_query, severity)
+        elif noise_type == 'Motion Blur':
+            noisy_img_query = trainingNoiseCluster.motion_blur(img_query, severity)
+        elif noise_type == 'Zoom Blur':
+            noisy_img_query = trainingNoiseCluster.zoom_blur(img_query, severity)
+        elif noise_type == 'Snow':
+            noisy_img_query = trainingNoiseCluster.snow(img_query, severity)
+        elif noise_type == 'Fog':
+            noisy_img_query = trainingNoiseCluster.fog(img_query, severity)
+        elif noise_type == 'Brightness':
+            noisy_img_query = trainingNoiseCluster.brightness(img_query, severity)
+        elif noise_type == 'Contrast':
+            noisy_img_query = trainingNoiseCluster.contrast(img_query, severity)
+        elif noise_type == 'Elastic':
+            noisy_img_query = trainingNoiseCluster.elastic_transform(img_query, severity)
+        elif noise_type == 'Pixelate':
+            noisy_img_query = trainingNoiseCluster.pixelate(img_query, severity)
+        elif noise_type == 'JPEG':
+            noisy_img_query = trainingNoiseCluster.jpeg_compression(img_query, severity)
+        elif noise_type == 'Speckle Noise':
+            noisy_img_query = trainingNoiseCluster.speckle_noise(img_query, severity)
+        elif noise_type == 'Gaussian Blur':
+            noisy_img_query = trainingNoiseCluster.gaussian_blur(np.array(img_query), severity)
+        elif noise_type == 'Spatter':
+            noisy_img_query = trainingNoiseCluster.spatter(img_query, severity)
+        elif noise_type == 'Saturate':
+            noisy_img_query = trainingNoiseCluster.saturate(img_query, severity)
+        else:
+            raise ValueError(f"Unsupported noise type: {noise_type}")
 
+        return noisy_img_query
 
 '''     
         ## UPDATING CSV FILE

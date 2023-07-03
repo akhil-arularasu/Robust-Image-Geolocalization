@@ -369,7 +369,7 @@ def main_worker(gpu, ngpus_per_node, args):
     val_scan_dataset = dataset(mode='scan_val', same_area=(not args.cross), args=args)
     val_query_dataset = dataset(mode='test_query', same_area=(not args.cross), args=args, noiseName=noiseName)
     val_reference_dataset = dataset(mode='test_reference', same_area=(not args.cross), args=args, noiseName=noiseName)
-
+    print('after dataset')
     if args.distributed:
         if args.mining:
             train_sampler = mining_sampler(train_dataset, batch_size=args.batch_size, dim=args.dim, save_path=args.save_path)
@@ -383,6 +383,7 @@ def main_worker(gpu, ngpus_per_node, args):
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
         num_workers=args.workers, pin_memory=True, sampler=train_sampler, drop_last=True)
+    print('after trainLoad')
 
     train_scan_loader = torch.utils.data.DataLoader(
         train_scan_dataset, batch_size=args.batch_size, shuffle=False,
@@ -407,7 +408,7 @@ def main_worker(gpu, ngpus_per_node, args):
         return
 
     for epoch in range(args.start_epoch, args.epochs):
-
+        epochStartTime = time.time()
         print('start epoch:{}, date:{}'.format(epoch, datetime.now()))
         if args.distributed:
             train_sampler.set_epoch(epoch)
@@ -417,6 +418,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, args, train_sampler)
+        print('elapsedTime Training:', time.time() - epochStartTime)
 
         # evaluate on validation set
         if not args.multiprocessing_distributed or args.gpu == 0:
@@ -533,7 +535,7 @@ def scan(loader, model, args):
     with torch.no_grad():
         end = time.time()
         for i, (images_q, images_k, _, indexes , delta, _) in enumerate(loader):
-
+            print('inside for loop')
             # measure data loading time
             data_time.update(time.time() - end)
 
@@ -733,8 +735,8 @@ def accuracy(query_features, reference_features, query_labels, noise_name, topk=
                         results[j] += 1.
 
     results = results / query_features.shape[0] * 100.
-     # Open the file in write mode
-    with open('trainNoiselvl2EvaluationValues.txt', 'a') as file:
+    # Open the file in write mode
+    with open('trainNoiselvl10EvaluationValues.txt', 'a') as file:
         # Format the content string
         content = 'Noise Type: {}, Top1 Accuracy: {:.2f}, Top5 Accuracy: {:.2f}, Top10 Accuracy: {:.2f}, Top1% Accuracy: {:.2f}, Time: {:.2f}\n'.format(noise_name, results[0], results[1], results[2], results[-1], time.time() - ts)
         # Write the content to the file
