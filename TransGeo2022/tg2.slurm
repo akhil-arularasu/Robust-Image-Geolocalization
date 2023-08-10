@@ -8,4 +8,4 @@
 module load cuda/11.7 cudnn/10-74
 source activate transgeo
 echo CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES
-source run_CVUSA.sh
+source run_CVUSA2.sh
