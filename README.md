@@ -1,5 +1,5 @@
 # Robust-Image-Geolocalization
-Training the existing TransGeo Model on a combination of Noisy and Clean Images ==> 
+Conclusion from experiments: Training the existing TransGeo Model on a combination of Noisy and Clean Images ==> 
 Generates better accuracies when running evaluations.
 
 The main code is in the TransGeo2022 folder. The results of the training were too big to be included in the GitHub repo so users will have to train and evaluate themselves unfortunately.
