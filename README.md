@@ -8,4 +8,6 @@ This repository provides the code modifications from the model referenced in the
 
 I ran the models through CRCV GPU Cluster accessible thru UCF VPN.
 
+Special thanks to my mentors Parth Kulkarni and Dr. Gaurav Nayak for their help in this project
+
 For inquiries/more info contact me at: helloakhil@gmail.com
