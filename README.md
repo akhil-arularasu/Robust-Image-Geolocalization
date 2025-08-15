@@ -1,5 +1,5 @@
 # Robust-Image-Geolocalization
-The main code is in the TransGeo2022 folder. The results of the training were too big to be included in the GitHub repo so users will have to train and evaluate themselves unfortunately.
+The main code is in the TransGeo2022 folder. The results of the training were too big to be included in the GitHub repo so users will have to train and evaluate themselves.
 
 This repository provides my code modifications to train TransGeo on a combination of Noisy and Clean Images. Original code is from the model referenced in the paper: ["TransGeo: Transformer Is All You Need for Cross-view Image Geo-localization"](https://arxiv.org/pdf/2204.00097.pdf) by Dr. Sijie Zhu, Dr. Chen Chen, and Dr. Mubarak Shah of UCF CRCV.
 
